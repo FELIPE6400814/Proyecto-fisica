@@ -5,270 +5,404 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Analizador de Torque</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg:      #07090f;
-      --panel:   #0d1117;
-      --border:  #1a2332;
-      --accent:  #00d4ff;
-      --accent2: #ff6b35;
-      --accent3: #7fff6e;
-      --text:    #e2e8f0;
-      --muted:   #4a5568;
-      --red:     #ff4757;
+      --bg:      #0c0f18;
+      --surface: #131720;
+      --surface2:#1a2030;
+      --border:  rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.12);
+      --accent:  #4f9cf9;
+      --green:   #52d68a;
+      --orange:  #f97316;
+      --red:     #f87171;
+      --yellow:  #fbbf24;
+      --text:    #e8eaf0;
+      --muted:   #6b7280;
+      --muted2:  #9ca3af;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+
+    .app { display:grid; grid-template-columns:300px 1fr; min-height:100vh; }
+
+    /* sidebar */
+    .sidebar {
+      background:var(--surface);
+      border-right:1px solid var(--border);
+      padding:20px 16px;
+      display:flex; flex-direction:column; gap:20px;
+      overflow-y:auto;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    .logo { display:flex; align-items:center; gap:10px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+    .logo-dot { width:8px; height:8px; border-radius:50%; background:var(--accent); }
+    .logo h1 { font-size:0.9rem; font-weight:600; letter-spacing:0.01em; }
+    .logo span { font-size:0.75rem; color:var(--muted); font-weight:300; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Inter', sans-serif;
-      min-height: 100vh;
-      overflow-x: hidden;
+    .section-label {
+      font-size:0.65rem; font-weight:600; letter-spacing:0.1em;
+      text-transform:uppercase; color:var(--muted);
+      margin-bottom:8px;
     }
 
-    body::before {
-      content: '';
-      position: fixed; inset: 0;
-      background-image:
-        linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
-      background-size: 48px 48px;
-      pointer-events: none; z-index: 0;
+    .field { margin-bottom:10px; }
+    .field label { display:block; font-size:0.72rem; color:var(--muted2); margin-bottom:4px; }
+    .field input {
+      width:100%; background:var(--surface2); border:1px solid var(--border);
+      border-radius:7px; padding:7px 10px; color:var(--text);
+      font-family:'DM Mono',monospace; font-size:0.82rem; outline:none;
+      transition:border-color 0.15s;
     }
+    .field input:focus { border-color:var(--accent); }
 
-    .container { max-width: 1200px; margin: 0 auto; padding: 24px; position: relative; z-index: 1; }
-
-    header {
-      display: flex; align-items: center; gap: 16px;
-      margin-bottom: 28px; padding-bottom: 20px;
-      border-bottom: 1px solid var(--border);
+    /* tabs */
+    .tabs { display:flex; gap:4px; background:var(--surface2); border-radius:8px; padding:3px; }
+    .tab {
+      flex:1; padding:6px; border:none; border-radius:6px;
+      background:transparent; color:var(--muted); font-size:0.75rem;
+      font-family:'DM Sans',sans-serif; cursor:pointer; transition:all 0.15s;
     }
-    header h1 {
-      font-family: 'Orbitron', monospace;
-      font-size: 1.4rem; font-weight: 900;
-      letter-spacing: 0.04em;
-      background: 	#00BFFF;
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    .tab.active { background:var(--surface); color:var(--text); font-weight:500; }
+
+    /* force cards */
+    .forces-list { display:flex; flex-direction:column; gap:6px; }
+    .force-card {
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:9px; padding:10px;
+      animation:fadeSlide 0.18s ease;
     }
-    header p { color: var(--muted); font-size: 0.78rem; margin-top: 3px; font-weight: 300; }
-
-    .layout { display: grid; grid-template-columns: 320px 1fr; gap: 16px; }
-    @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
-
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 18px;
+    @keyframes fadeSlide { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+    .force-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .force-badge {
+      font-size:0.65rem; font-weight:600; padding:2px 8px;
+      border-radius:99px; letter-spacing:0.04em;
     }
-
-    .panel-title {
-      font-family: 'Orbitron', monospace;
-      font-size: 0.6rem; letter-spacing: 0.15em;
-      text-transform: uppercase; color: var(--accent);
-      margin-bottom: 14px;
-      display: flex; align-items: center; gap: 8px;
+    .force-inputs { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+    .force-inputs label { font-size:0.62rem; color:var(--muted); display:block; margin-bottom:3px; }
+    .force-inputs input {
+      width:100%; background:var(--bg); border:1px solid var(--border);
+      border-radius:5px; padding:5px 7px; color:var(--text);
+      font-family:'DM Mono',monospace; font-size:0.78rem; outline:none;
     }
-    .panel-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .force-inputs input:focus { border-color:var(--accent); }
+    .btn-remove { background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; line-height:1; padding:2px 5px; border-radius:4px; transition:all 0.12s; }
+    .btn-remove:hover { color:var(--red); background:rgba(248,113,113,0.1); }
 
-    .field { margin-bottom: 12px; }
-    label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
-
-    input[type="number"] {
-      width: 100%;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      padding: 8px 11px;
-      color: var(--text);
-      font-family: 'Orbitron', monospace;
-      font-size: 0.82rem;
-      transition: border-color 0.2s; outline: none;
+    /* equilibrium panel */
+    .eq-panel { display:flex; flex-direction:column; gap:8px; }
+    .eq-result {
+      background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; padding:10px 12px;
+      font-size:0.78rem; color:var(--muted2); line-height:1.6;
+      min-height:60px;
     }
-    input[type="number"]:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(0,212,255,0.08);
+    .eq-result strong { color:var(--text); font-weight:500; }
+    .eq-result .eq-value { font-size:1.1rem; font-weight:600; color:var(--green); font-family:'DM Mono',monospace; }
+
+    /* buttons */
+    .btn-add {
+      width:100%; padding:8px; background:transparent;
+      border:1px dashed var(--border2); border-radius:7px;
+      color:var(--muted); font-size:0.78rem; cursor:pointer;
+      transition:all 0.15s; font-family:'DM Sans',sans-serif;
     }
-
-    .forces-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-
-    .force-row {
-      background: rgba(0,0,0,0.4);
-      border: 1px solid var(--border);
-      border-radius: 9px; padding: 11px;
-      animation: slideIn 0.18s ease;
+    .btn-add:hover { border-color:var(--accent); color:var(--accent); }
+    .btn-calc {
+      width:100%; padding:9px; background:var(--accent);
+      border:none; border-radius:8px; color:#fff;
+      font-size:0.82rem; font-weight:600; cursor:pointer;
+      transition:all 0.15s; font-family:'DM Sans',sans-serif;
     }
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(-5px); }
-      to   { opacity: 1; transform: translateY(0); }
+    .btn-calc:hover { background:#3d8ef0; }
+    .btn-calc:active { transform:scale(0.98); }
+    .btn-calc.loading { opacity:0.5; pointer-events:none; }
+    .btn-eq {
+      width:100%; padding:8px; background:transparent;
+      border:1px solid var(--green); border-radius:7px;
+      color:var(--green); font-size:0.78rem; font-weight:500;
+      cursor:pointer; transition:all 0.15s; font-family:'DM Sans',sans-serif;
     }
-    .force-row-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
-    .force-label { font-family: 'Orbitron', monospace; font-size: 0.65rem; color: var(--accent2); font-weight: 700; }
-    .btn-remove { background: none; border: none; color: var(--red); cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 4px; transition: background 0.15s; }
-    .btn-remove:hover { background: rgba(255,71,87,0.12); }
+    .btn-eq:hover { background:rgba(82,214,138,0.08); }
 
-    .force-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
-    .force-inputs label { font-size: 0.63rem; }
+    .error-msg { font-size:0.75rem; color:var(--red); padding:6px 8px; background:rgba(248,113,113,0.08); border-radius:6px; margin-top:4px; }
 
-    .btn { width: 100%; padding: 10px; border: none; border-radius: 9px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
-    .btn-add { background: transparent; border: 1px dashed var(--border); color: var(--muted); margin-bottom: 8px; }
-    .btn-add:hover { border-color: var(--accent); color: var(--accent); }
-    .btn-calc { background: linear-gradient(135deg, var(--accent), #0088bb); color: #000; font-weight: 700; box-shadow: 0 4px 18px rgba(0,212,255,0.2); }
-    .btn-calc:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(0,212,255,0.3); }
-    .btn-calc:active { transform: translateY(0); }
+    /* main content */
+    .main { display:flex; flex-direction:column; padding:20px; gap:16px; }
 
-    /* ── Canvas de simulación ── */
-    #simCanvas {
-      width: 100%; border-radius: 10px; display: block;
-      background: #07090f;
-      border: 1px solid var(--border);
+    /* canvas */
+    .canvas-panel {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:14px; padding:0; overflow:hidden;
+      flex:1; min-height:420px;
     }
-
-    .results-panel { margin-top: 14px; }
-
-    .status-badge {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 7px 14px; border-radius: 999px;
-      font-family: 'Orbitron', monospace;
-      font-size: 0.65rem; font-weight: 700;
-      letter-spacing: 0.06em;
-      margin-bottom: 14px;
+    .canvas-header {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:12px 16px; border-bottom:1px solid var(--border);
     }
-    .status-equilibrium { background: rgba(127,255,110,0.08); border: 1px solid var(--accent3); color: var(--accent3); }
-    .status-dynamic     { background: rgba(255,107,53,0.08);  border: 1px solid var(--accent2); color: var(--accent2); }
-
-    .torque-total {
-      font-family: 'Orbitron', monospace;
-      font-size: 1.7rem; font-weight: 900; margin-bottom: 16px;
+    .canvas-header span { font-size:0.72rem; color:var(--muted); }
+    .status-pill {
+      font-size:0.68rem; font-weight:500; padding:3px 10px;
+      border-radius:99px; letter-spacing:0.03em;
     }
-    .torque-total span { color: var(--accent); }
+    .pill-eq  { background:rgba(82,214,138,0.12); color:var(--green); border:1px solid rgba(82,214,138,0.25); }
+    .pill-dyn { background:rgba(249,115,22,0.12); color:var(--orange); border:1px solid rgba(249,115,22,0.25); }
+    .pill-idle{ background:var(--surface2); color:var(--muted); border:1px solid var(--border); }
 
-    .forces-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-    .forces-table th { text-align: left; color: var(--muted); padding: 5px 9px; border-bottom: 1px solid var(--border); font-size: 0.62rem; letter-spacing: 0.08em; font-weight: 500; }
-    .forces-table td { padding: 7px 9px; border-bottom: 1px solid rgba(26,35,50,0.6); font-family: 'Orbitron', monospace; font-size: 0.7rem; }
-    .forces-table tr:hover td { background: rgba(255,255,255,0.015); }
+    #simCanvas { display:block; width:100%; }
 
-    .tag { padding: 2px 7px; border-radius: 4px; font-size: 0.62rem; font-family: 'Orbitron', monospace; }
-    .tag-cw      { background: rgba(255,71,87,0.13);  color: var(--red); }
-    .tag-ccw     { background: rgba(0,212,255,0.1);   color: var(--accent); }
-    .tag-neutral { background: rgba(74,85,104,0.2);   color: var(--muted); }
+    /* results row */
+    .results-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; }
+    .metric {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:10px; padding:12px 14px;
+    }
+    .metric-label { font-size:0.65rem; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.06em; }
+    .metric-value { font-size:1.25rem; font-weight:600; font-family:'DM Mono',monospace; }
 
-    .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
-    .empty-state .icon { font-size: 2.5rem; margin-bottom: 10px; opacity: 0.35; }
-    .empty-state p { font-size: 0.78rem; line-height: 1.6; }
+    /* table */
+    .table-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .table-panel table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+    .table-panel th { padding:9px 12px; text-align:left; font-size:0.65rem; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border); }
+    .table-panel td { padding:8px 12px; border-bottom:1px solid var(--border); font-family:'DM Mono',monospace; font-size:0.76rem; }
+    .table-panel tr:last-child td { border-bottom:none; }
+    .table-panel tr:hover td { background:rgba(255,255,255,0.02); }
+    .dir-badge { padding:2px 7px; border-radius:5px; font-size:0.65rem; font-family:'DM Sans',sans-serif; font-weight:500; }
+    .dir-cw  { background:rgba(248,113,113,0.12); color:var(--red); }
+    .dir-ccw { background:rgba(79,156,249,0.12);  color:var(--accent); }
+    .dir-n   { background:var(--surface2); color:var(--muted); }
 
-    .loading { opacity: 0.55; pointer-events: none; }
-    .error-msg { background: rgba(255,71,87,0.08); border: 1px solid var(--red); border-radius: 7px; padding: 9px 12px; font-size: 0.78rem; color: var(--red); margin-top: 8px; }
+    /* canvas tooltip overlay */
+    #canvasTooltip {
+      position:absolute; background:var(--surface); border:1px solid var(--border2);
+      border-radius:8px; padding:8px 11px; font-size:0.72rem; pointer-events:none;
+      opacity:0; transition:opacity 0.12s; z-index:10;
+      font-family:'DM Mono',monospace; min-width:130px;
+    }
+    #canvasTooltip.visible { opacity:1; }
+    .tooltip-title { font-size:0.65rem; color:var(--muted); margin-bottom:4px; font-family:'DM Sans',sans-serif; }
+    .canvas-wrap { position:relative; }
 
-    @keyframes rotate-cw  { from { transform: rotate(0deg); }   to { transform: rotate(360deg);  } }
-    @keyframes rotate-ccw { from { transform: rotate(0deg); }   to { transform: rotate(-360deg); } }
-    .rotation-indicator { display: inline-block; font-size: 1.2rem; }
-    .rotation-cw  { animation: rotate-cw  2s linear infinite; }
-    .rotation-ccw { animation: rotate-ccw 2s linear infinite; }
+    @media(max-width:800px) { .app{grid-template-columns:1fr;} .sidebar{border-right:none;border-bottom:1px solid var(--border);} }
   </style>
 </head>
 <body>
-<div class="container">
-  <header>
-    <div>
-      <h1>ANALIZADOR DE TORQUE</h1>
-      <p>Leyes de Newton · Estática / Dinámica · Momento de Fuerza</p>
+<div class="app">
+
+  <!-- ── Sidebar ─────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      <div>
+        <h1>ANALIZADOR DE TORQUE</h1>
+        <span>Física mecánica</span>
+      </div>
     </div>
-  </header>
 
-  <div class="layout">
-    <aside>
-      <div class="panel">
-        <div class="panel-title">Viga</div>
+    <!-- Viga -->
+    <div>
+      <div class="section-label">Viga</div>
+      <div class="field">
+        <label>Longitud (m)</label>
+        <input type="number" id="beamLength" value="10" min="1" max="50" step="0.5" />
+      </div>
+      <div class="field">
+        <label>Posición del pivote (m)</label>
+        <input type="number" id="pivot" value="5" min="0" step="0.5" />
+      </div>
+    </div>
+
+    <!-- Tabs torque / equilibrio -->
+    <div>
+      <div class="tabs" id="modeTabs">
+        <button class="tab active" onclick="setMode('torque')">Torque</button>
+        <button class="tab" onclick="setMode('equilibrio')">Equilibrio</button>
+      </div>
+    </div>
+
+    <!-- Panel torque -->
+    <div id="panelTorque">
+      <div class="section-label">Fuerzas</div>
+      <div class="forces-list" id="forcesList"></div>
+      <button class="btn-add" style="margin-bottom:8px" onclick="addForce()">+ Agregar fuerza</button>
+      <button class="btn-calc" id="calcBtn" onclick="calculate()">Calcular torque</button>
+      <div id="errorMsg"></div>
+    </div>
+
+    <!-- Panel equilibrio -->
+    <div id="panelEquilibrio" style="display:none">
+      <div class="section-label">Fuerzas conocidas</div>
+      <div class="forces-list" id="forcesListEq"></div>
+      <button class="btn-add" style="margin-bottom:8px" onclick="addForceEq()">+ Agregar fuerza</button>
+      <div class="eq-panel">
+        <div class="section-label" style="margin-top:4px">Fuerza desconocida</div>
         <div class="field">
-          <label>Longitud (m)</label>
-          <input type="number" id="beamLength" value="10" min="1" max="50" step="0.5" />
+          <label>Posición donde calcular (m)</label>
+          <input type="number" id="unknownPos" value="8" step="0.5" />
         </div>
-        <div class="field">
-          <label>Posición del pivote (m)</label>
-          <input type="number" id="pivot" value="5" min="0" step="0.5" />
-        </div>
-      </div>
-
-      <div class="panel" style="margin-top:12px">
-        <div class="panel-title">Fuerzas</div>
-        <div class="forces-list" id="forcesList"></div>
-        <button class="btn btn-add"  onclick="addForce()">+ Agregar fuerza</button>
-        <button class="btn btn-calc" onclick="calculate()">Calcular →</button>
-        <div id="errorMsg"></div>
-      </div>
-    </aside>
-
-    <main>
-      <div class="panel" style="padding:14px">
-        <div class="panel-title">Simulación Dinámica</div>
-        <canvas id="simCanvas" height="260"></canvas>
-      </div>
-
-      <div class="panel results-panel" id="resultsPanel">
-        <div class="empty-state">
-          <p>Agrega fuerzas y presiona<br/><strong>Calcular</strong> para ver la simulación</p>
+        <button class="btn-eq" onclick="calculateEquilibrium()">Calcular fuerza necesaria</button>
+        <div class="eq-result" id="eqResult">
+          Ingresa las fuerzas conocidas y la posición donde quieres aplicar la fuerza de equilibrio.
         </div>
       </div>
-    </main>
+      <div id="errorMsgEq"></div>
+    </div>
+  </aside>
+
+  <!-- ── Main ───────────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- Canvas -->
+    <div class="canvas-panel">
+      <div class="canvas-header">
+        <span id="canvasTitle">Simulación dinámica — agrega fuerzas y calcula</span>
+        <span class="status-pill pill-idle" id="statusPill">Sin calcular</span>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="simCanvas" height="400"></canvas>
+        <div id="canvasTooltip"><div class="tooltip-title" id="ttTitle"></div><div id="ttBody"></div></div>
+      </div>
+    </div>
+
+    <!-- Métricas (se llenan tras calcular) -->
+    <div class="results-row" id="metricsRow" style="display:none">
+      <div class="metric">
+        <div class="metric-label">τ total</div>
+        <div class="metric-value" id="mTorque">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Estado</div>
+        <div class="metric-value" style="font-size:0.9rem" id="mEstado">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Rotación</div>
+        <div class="metric-value" style="font-size:0.9rem" id="mRot">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Fórmula</div>
+        <div class="metric-value" style="font-size:0.7rem;color:var(--muted)">τ = F·sin(θ)·d</div>
+      </div>
+    </div>
+
+    <!-- Tabla de resultados -->
+    <div class="table-panel" id="tablePanel" style="display:none">
+      <table>
+        <thead><tr>
+          <th>Fuerza</th><th>Pos.</th><th>Magnitud</th><th>Ángulo</th>
+          <th>Brazo</th><th>τ</th><th>Dirección</th>
+        </tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
   </div>
 </div>
 
 <script>
-  const API = '/api/physics/torque';
-  let forceCount = 0;
-  let lastResult = null;
+  // ── Estado global ────────────────────────────────────────────────
+  let forceCount   = 0;
+  let forceCountEq = 0;
+  let mode         = 'torque';
+  let lastResult   = null;
+  let beamAngle    = 0;
+  let targetAngle  = 0;
+  let animId       = null;
 
-  // ── Estado de animación ─────────────────────────────────────────────
-  let beamAngle    = 0;       // Ángulo actual de inclinación de la viga (radianes)
-  let targetAngle  = 0;       // Ángulo destino según el torque neto
-  let animFrameId  = null;    // ID del requestAnimationFrame activo
-  let isAnimating  = false;
+  // Colores de las fuerzas
+  const COLORS = ['#4f9cf9','#f97316','#fbbf24','#52d68a','#c084fc','#f472b6','#34d399'];
 
-  // ── Gestión de fuerzas ──────────────────────────────────────────────
+  // ── Gestión de modo ──────────────────────────────────────────────
+  function setMode(m) {
+    mode = m;
+    document.getElementById('panelTorque').style.display     = m === 'torque' ? '' : 'none';
+    document.getElementById('panelEquilibrio').style.display = m === 'equilibrio' ? '' : 'none';
+    document.querySelectorAll('.tab').forEach((t,i) => {
+      t.classList.toggle('active', (i===0 && m==='torque') || (i===1 && m==='equilibrio'));
+    });
+    redraw();
+  }
+
+  // ── Fuerzas (panel torque) ────────────────────────────────────────
   function addForce() {
     forceCount++;
-    const list = document.getElementById('forcesList');
-    const row  = document.createElement('div');
-    row.className = 'force-row';
-    row.id = `force-${forceCount}`;
+    const color = COLORS[(forceCount-1) % COLORS.length];
+    const list  = document.getElementById('forcesList');
+    const row   = document.createElement('div');
+    row.className = 'force-card';
+    row.id = `fc-${forceCount}`;
     row.innerHTML = `
-      <div class="force-row-header">
-        <span class="force-label">F${forceCount}</span>
+      <div class="force-card-header">
+        <span class="force-badge" style="background:${color}18;color:${color};border:1px solid ${color}40">F${forceCount}</span>
         <button class="btn-remove" onclick="removeForce(${forceCount})">✕</button>
       </div>
       <div class="force-inputs">
-        <div><label>Posición (m)</label><input type="number" id="pos-${forceCount}" value="${forceCount * 2}" step="0.5"/></div>
-        <div><label>Magnitud (N)</label><input type="number" id="mag-${forceCount}" value="100" step="1"/></div>
-        <div><label>Ángulo (°)</label><input type="number"   id="ang-${forceCount}" value="90"  min="1" max="179" step="5"/></div>
+        <div><label>Pos. (m)</label><input type="number" id="pos-${forceCount}" value="${forceCount*2}" step="0.5" oninput="onForceChange()"/></div>
+        <div><label>Mag. (N)</label><input type="number" id="mag-${forceCount}" value="100" step="10" oninput="onForceChange()"/></div>
+        <div><label>Ángulo °</label><input type="number" id="ang-${forceCount}" value="90" min="1" max="179" step="5" oninput="onForceChange()"/></div>
       </div>`;
     list.appendChild(row);
-    drawStatic();
+    redraw();
   }
 
   function removeForce(id) {
-    const el = document.getElementById(`force-${id}`);
-    if (el) el.remove();
-    drawStatic();
+    const el = document.getElementById(`fc-${id}`);
+    if(el) el.remove();
+    lastResult = null;
+    redraw();
   }
 
   function getForces() {
-    const forces = [];
-    document.querySelectorAll('.force-row').forEach(row => {
+    return [...document.querySelectorAll('#forcesList .force-card')].map(row => {
       const id = row.id.split('-')[1];
-      forces.push({
-        position:  parseFloat(document.getElementById(`pos-${id}`).value) || 0,
-        magnitude: parseFloat(document.getElementById(`mag-${id}`).value) || 0,
-        angle:     parseFloat(document.getElementById(`ang-${id}`).value) || 90,
-      });
+      return {
+        position:  parseFloat(document.getElementById(`pos-${id}`).value)||0,
+        magnitude: parseFloat(document.getElementById(`mag-${id}`).value)||0,
+        angle:     parseFloat(document.getElementById(`ang-${id}`).value)||90,
+      };
     });
-    return forces;
   }
 
-  // ── Llamada a la API ────────────────────────────────────────────────
+  function onForceChange() { lastResult = null; redraw(); }
+
+  // ── Fuerzas (panel equilibrio) ────────────────────────────────────
+  function addForceEq() {
+    forceCountEq++;
+    const color = COLORS[(forceCountEq-1) % COLORS.length];
+    const list  = document.getElementById('forcesListEq');
+    const row   = document.createElement('div');
+    row.className = 'force-card';
+    row.id = `fce-${forceCountEq}`;
+    row.innerHTML = `
+      <div class="force-card-header">
+        <span class="force-badge" style="background:${color}18;color:${color};border:1px solid ${color}40">F${forceCountEq}</span>
+        <button class="btn-remove" onclick="removeForceEq(${forceCountEq})">✕</button>
+      </div>
+      <div class="force-inputs">
+        <div><label>Pos. (m)</label><input type="number" id="eqpos-${forceCountEq}" value="${forceCountEq*2}" step="0.5"/></div>
+        <div><label>Mag. (N)</label><input type="number" id="eqmag-${forceCountEq}" value="100" step="10"/></div>
+        <div><label>Ángulo °</label><input type="number" id="eqang-${forceCountEq}" value="90" min="1" max="179" step="5"/></div>
+      </div>`;
+    list.appendChild(row);
+  }
+
+  function removeForceEq(id) {
+    const el = document.getElementById(`fce-${id}`);
+    if(el) el.remove();
+  }
+
+  function getForcesEq() {
+    return [...document.querySelectorAll('#forcesListEq .force-card')].map(row => {
+      const id = row.id.split('-')[1];
+      return {
+        position:  parseFloat(document.getElementById(`eqpos-${id}`).value)||0,
+        magnitude: parseFloat(document.getElementById(`eqmag-${id}`).value)||0,
+        angle:     parseFloat(document.getElementById(`eqang-${id}`).value)||90,
+      };
+    });
+  }
+
+  // ── API: calcular torque ─────────────────────────────────────────
   async function calculate() {
     const pivot      = parseFloat(document.getElementById('pivot').value);
     const beamLength = parseFloat(document.getElementById('beamLength').value);
@@ -276,386 +410,334 @@
     const errEl      = document.getElementById('errorMsg');
     errEl.innerHTML  = '';
 
-    if (!forces.length) {
-      errEl.innerHTML = '<div class="error-msg">Agrega al menos una fuerza.</div>';
-      return;
-    }
+    if(!forces.length){ errEl.innerHTML='<div class="error-msg">Agrega al menos una fuerza.</div>'; return; }
 
-    const btn = document.querySelector('.btn-calc');
-    btn.textContent = 'Calculando…';
-    btn.classList.add('loading');
+    const btn = document.getElementById('calcBtn');
+    btn.textContent='Calculando…'; btn.classList.add('loading');
 
     try {
-      const res  = await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pivot, beamLength, forces }),
+      const res  = await fetch('/api/physics/torque',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({pivot,beamLength,forces}),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
+      if(!res.ok) throw new Error(data.error);
       lastResult = data;
       renderResults(data);
-      startAnimation(data); // ← arranca la animación de la viga
-
-    } catch (err) {
-      errEl.innerHTML = `<div class="error-msg">Error: ${err.message}</div>`;
+      startAnimation(data);
+    } catch(err) {
+      errEl.innerHTML=`<div class="error-msg">${err.message}</div>`;
     } finally {
-      btn.textContent = 'Calcular →';
-      btn.classList.remove('loading');
+      btn.textContent='Calcular torque'; btn.classList.remove('loading');
     }
   }
 
-  // ── Animación de la viga ────────────────────────────────────────────
-  /**
-   * Calcula el ángulo destino a partir del torque neto.
-   * Un torque grande inclina más la viga; el equilibrio la deja horizontal.
-   * La viga se anima suavemente con interpolación lineal (lerp).
-   */
+  // ── API: calcular equilibrio ─────────────────────────────────────
+  async function calculateEquilibrium() {
+    const pivot          = parseFloat(document.getElementById('pivot').value);
+    const beamLength     = parseFloat(document.getElementById('beamLength').value);
+    const forces         = getForcesEq();
+    const unknownPosition= parseFloat(document.getElementById('unknownPos').value);
+    const errEl          = document.getElementById('errorMsgEq');
+    const resultEl       = document.getElementById('eqResult');
+    errEl.innerHTML = '';
+
+    if(!forces.length){ errEl.innerHTML='<div class="error-msg">Agrega al menos una fuerza conocida.</div>'; return; }
+
+    try {
+      const res  = await fetch('/api/physics/equilibrium',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({pivot,forces,unknownPosition}),
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error);
+
+      const dir = data.requiredForce >= 0 ? '↑ hacia arriba' : '↓ hacia abajo';
+      const col = data.requiredForce >= 0 ? 'var(--green)' : 'var(--orange)';
+      resultEl.innerHTML = `
+        <div style="margin-bottom:6px;font-size:0.7rem;color:var(--muted)">
+          Σ τ conocidos = <strong>${data.knownTorque} N·m</strong> &nbsp;·&nbsp; brazo = <strong>${data.unknownLeverArm} m</strong>
+        </div>
+        <div style="margin-bottom:4px">Fuerza necesaria en <strong>${unknownPosition} m</strong>:</div>
+        <div class="eq-value" style="color:${col}">${Math.abs(data.requiredForce).toFixed(2)} N &nbsp;${dir}</div>
+        <div style="margin-top:6px;font-size:0.7rem;color:var(--muted)">${data.message}</div>`;
+
+      // Dibujar en canvas la fuerza resultante junto a las conocidas
+      const allForces = [...forces, {position:unknownPosition, magnitude:Math.abs(data.requiredForce), angle:90, isResult:true, direction:data.requiredForce}];
+      drawDynamic({forces:allForces.map(f=>({...f,torque:0,direction:'neutro'})), totalTorque:0, isEquilibrium:true, pivot, beamLength}, 0, allForces);
+
+    } catch(err) {
+      errEl.innerHTML=`<div class="error-msg">${err.message}</div>`;
+    }
+  }
+
+  // ── Renderizar resultados ────────────────────────────────────────
+  function renderResults(data) {
+    document.getElementById('metricsRow').style.display = '';
+    document.getElementById('tablePanel').style.display = '';
+
+    document.getElementById('mTorque').textContent = data.totalTorque + ' N·m';
+    document.getElementById('mTorque').style.color = data.isEquilibrium ? 'var(--green)' : 'var(--orange)';
+    document.getElementById('mEstado').textContent = data.isEquilibrium ? 'Estático' : 'Dinámico';
+    document.getElementById('mRot').textContent    = data.rotationDirection || '—';
+
+    const pill = document.getElementById('statusPill');
+    pill.textContent = data.isEquilibrium ? 'Equilibrio' : 'En rotación';
+    pill.className   = 'status-pill ' + (data.isEquilibrium ? 'pill-eq' : 'pill-dyn');
+
+    document.getElementById('canvasTitle').textContent =
+      data.isEquilibrium ? 'Sistema en equilibrio estático' : `Rotación ${data.rotationDirection} · τ = ${data.totalTorque} N·m`;
+
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = data.forces.map((f,i)=>{
+      const dc = f.direction==='horario' ? 'dir-cw' : f.direction==='antihorario' ? 'dir-ccw' : 'dir-n';
+      return `<tr>
+        <td style="color:${COLORS[i%COLORS.length]}">F${i+1}</td>
+        <td>${f.position} m</td><td>${f.magnitude} N</td><td>${f.angle}°</td>
+        <td>${f.leverArm} m</td>
+        <td style="font-weight:500">${f.torque} N·m</td>
+        <td><span class="dir-badge ${dc}">${f.direction}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Animación ────────────────────────────────────────────────────
   function startAnimation(data) {
-    if (animFrameId) cancelAnimationFrame(animFrameId);
-
-    const MAX_ANGLE = Math.PI / 5; // Máximo 36° de inclinación
-
-    if (data.isEquilibrium) {
-      targetAngle = 0; // Viga horizontal = equilibrio
+    if(animId) cancelAnimationFrame(animId);
+    const MAX = Math.PI/5;
+    if(data.isEquilibrium) {
+      targetAngle = 0;
     } else {
-      // Normalizar el torque para mapearlo a un ángulo visual
-      // Usamos arctan para que no crezca infinitamente
-      const torqueNorm = data.totalTorque / 500; // 500 N·m como referencia de escala
-      targetAngle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, Math.atan(torqueNorm) * 1.2));
+      const norm = data.totalTorque / 500;
+      targetAngle = Math.max(-MAX, Math.min(MAX, Math.atan(norm)*1.2));
     }
-
-    isAnimating = true;
-    animate(data);
+    animateLoop(data);
   }
 
-  function animate(data) {
-    // Interpolación suave: beamAngle se acerca al targetAngle 6% por frame
-    beamAngle += (targetAngle - beamAngle) * 0.06;
-
+  function animateLoop(data) {
+    beamAngle += (targetAngle - beamAngle) * 0.07;
     drawDynamic(data, beamAngle);
-
-    // Seguimos animando hasta que la diferencia sea insignificante
-    if (Math.abs(targetAngle - beamAngle) > 0.001) {
-      animFrameId = requestAnimationFrame(() => animate(data));
+    if(Math.abs(targetAngle - beamAngle) > 0.0008) {
+      animId = requestAnimationFrame(()=>animateLoop(data));
     } else {
-      beamAngle   = targetAngle;
-      isAnimating = false;
-      drawDynamic(data, beamAngle); // Frame final exacto
+      beamAngle = targetAngle;
+      drawDynamic(data, beamAngle);
     }
   }
 
-  // ── Dibujo estático (sin resultado) ────────────────────────────────
-  function drawStatic() {
-    if (lastResult) return; // Si hay resultado activo, no sobreescribir
-    drawDynamic(null, 0);
+  // ── Redibujado en tiempo real (sin resultado) ────────────────────
+  function redraw() {
+    if(animId) cancelAnimationFrame(animId);
+    if(lastResult) {
+      startAnimation(lastResult);
+    } else {
+      beamAngle = 0; targetAngle = 0;
+      drawDynamic(null, 0);
+    }
   }
 
-  // ── Motor de dibujo principal ───────────────────────────────────────
-  /**
-   * Dibuja la viga inclinada en `angle` radianes alrededor del pivote,
-   * con todas sus fuerzas y etiquetas.
-   *
-   * @param {Object|null} data  - Resultado del backend (o null si aún no se calculó)
-   * @param {number}      angle - Ángulo actual de la viga en radianes
-   */
-  function drawDynamic(data, angle) {
+  // ── Motor de dibujo ──────────────────────────────────────────────
+  function drawDynamic(data, angle, overrideForces) {
     const canvas = document.getElementById('simCanvas');
     const ctx    = canvas.getContext('2d');
-    canvas.width = canvas.offsetWidth || 800;
-    const W = canvas.width, H = 260;
+    canvas.width = canvas.offsetWidth || 900;
+    const W = canvas.width, H = 400;
     canvas.height = H;
 
-    const beamLength = parseFloat(document.getElementById('beamLength').value) || 10;
-    const pivot      = parseFloat(document.getElementById('pivot').value) || 5;
-    const forces     = getForces();
+    const beamLength = parseFloat(document.getElementById('beamLength').value)||10;
+    const pivot      = parseFloat(document.getElementById('pivot').value)||5;
+    const forces     = overrideForces || (mode==='torque' ? getForces() : getForcesEq());
 
-    // El pivote siempre está fijo en el centro visual del canvas
-    const pivotX = W / 2;
-    const pivotY = H * 0.52;
-    const scale  = (W * 0.78) / beamLength; // píxeles por metro
+    const pivotX = W/2, pivotY = H*0.50;
+    const scale  = (W*0.80)/beamLength;
+    const leftD  = pivot * scale;
+    const rightD = (beamLength-pivot)*scale;
+    const cos = Math.cos(angle), sin = Math.sin(angle);
 
-    // Extremos de la viga rotada alrededor del pivote
-    const leftDist  = pivot * scale;          // distancia desde pivote al extremo izq
-    const rightDist = (beamLength - pivot) * scale; // distancia al extremo der
+    const x1 = pivotX - leftD*cos,  y1 = pivotY - leftD*sin;
+    const x2 = pivotX + rightD*cos, y2 = pivotY + rightD*sin;
 
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
+    // Fondo
+    ctx.fillStyle = '#0c0f18';
+    ctx.fillRect(0,0,W,H);
 
-    // Coordenadas de los extremos de la viga en el canvas
-    const x1 = pivotX - leftDist  * cos,  y1 = pivotY - leftDist  * sin;
-    const x2 = pivotX + rightDist * cos,  y2 = pivotY + rightDist * sin;
-
-    // ── Fondo ────────────────────────────────────────────────────────
-    ctx.fillStyle = '#07090f';
-    ctx.fillRect(0, 0, W, H);
-
-    // Línea de horizonte de referencia (donde estaría la viga en equilibrio)
-    ctx.strokeStyle = 'rgba(26,35,50,0.8)';
-    ctx.lineWidth   = 1;
-    ctx.setLineDash([6, 6]);
-    ctx.beginPath();
-    ctx.moveTo(pivotX - leftDist, pivotY);
-    ctx.lineTo(pivotX + rightDist, pivotY);
-    ctx.stroke();
+    // Línea de referencia horizontal
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth=1; ctx.setLineDash([5,8]);
+    ctx.beginPath(); ctx.moveTo(x1+(y1-pivotY),pivotY); ctx.lineTo(x2-(y2-pivotY),pivotY); ctx.stroke();
     ctx.setLineDash([]);
 
-    // ── Suelo / soporte del pivote ───────────────────────────────────
-    // Base del triángulo
-    ctx.strokeStyle = '#1a2332';
-    ctx.lineWidth   = 1;
-    ctx.beginPath();
-    ctx.moveTo(pivotX - 20, pivotY + 28);
-    ctx.lineTo(pivotX + 20, pivotY + 28);
-    ctx.stroke();
-    // Líneas de suelo
-    for (let i = -3; i <= 3; i++) {
-      ctx.beginPath();
-      ctx.moveTo(pivotX + i * 7 - 4, pivotY + 28);
-      ctx.lineTo(pivotX + i * 7 - 10, pivotY + 36);
-      ctx.stroke();
+    // Soporte del pivote
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pivotX-18,pivotY+22); ctx.lineTo(pivotX+18,pivotY+22); ctx.stroke();
+    for(let i=-3;i<=3;i++){
+      ctx.beginPath(); ctx.moveTo(pivotX+i*6-3,pivotY+22); ctx.lineTo(pivotX+i*6-9,pivotY+30); ctx.stroke();
     }
 
-    // ── Pivote (triángulo fijo) ──────────────────────────────────────
-    ctx.fillStyle   = '#00d4ff';
-    ctx.shadowColor = '#00d4ff';
-    ctx.shadowBlur  = 12;
-    ctx.beginPath();
-    ctx.moveTo(pivotX,      pivotY);
-    ctx.lineTo(pivotX - 13, pivotY + 26);
-    ctx.lineTo(pivotX + 13, pivotY + 26);
-    ctx.closePath();
-    ctx.fill();
-    ctx.shadowBlur = 0;
+    // Pivote
+    ctx.fillStyle='#4f9cf9';
+    ctx.beginPath(); ctx.moveTo(pivotX,pivotY); ctx.lineTo(pivotX-11,pivotY+20); ctx.lineTo(pivotX+11,pivotY+20); ctx.closePath(); ctx.fill();
 
-    // ── Sombra de la viga (efecto de profundidad) ────────────────────
-    ctx.shadowColor = 'rgba(0,212,255,0.15)';
-    ctx.shadowBlur  = 8;
-    ctx.strokeStyle = 'rgba(0,212,255,0.08)';
-    ctx.lineWidth   = 16;
-    ctx.lineCap     = 'round';
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+    // Viga: color según estado
+    let beamColor = '#2d4a6e';
+    if(data && !data.isEquilibrium) beamColor = angle>0 ? '#6b3a1e' : '#1e4a6b';
 
-    // ── Viga principal con degradado ─────────────────────────────────
-    // Para degradar a lo largo de la viga usamos un gradiente lineal entre sus extremos
-    const beamGrad = ctx.createLinearGradient(x1, y1, x2, y2);
+    ctx.strokeStyle = beamColor;
+    ctx.lineWidth=16; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
 
-    if (data && !data.isEquilibrium) {
-      // Inclinada: el lado que "baja" se tiñe de naranja/rojo
-      if (angle > 0) {
-        // Gira antihorario: lado derecho baja
-        beamGrad.addColorStop(0,   '#3a5a6a');
-        beamGrad.addColorStop(1,   '#7a3020');
-      } else {
-        // Gira horario: lado izquierdo baja
-        beamGrad.addColorStop(0,   '#7a3020');
-        beamGrad.addColorStop(1,   '#3a5a6a');
+    // Brillo de la viga
+    ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(x1+sin*4,y1-cos*4); ctx.lineTo(x2+sin*4,y2-cos*4); ctx.stroke();
+
+    // Marcas de escala
+    ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=1;
+    for(let i=0;i<=beamLength;i++){
+      const t=i/beamLength, mx=x1+(x2-x1)*t, my=y1+(y2-y1)*t;
+      const tl=i%5===0?8:i%2===0?5:3;
+      ctx.beginPath(); ctx.moveTo(mx-sin*tl,my+cos*tl); ctx.lineTo(mx+sin*tl,my-cos*tl); ctx.stroke();
+      if(i%2===0 && Math.abs(angle)<0.25){
+        ctx.fillStyle='rgba(107,114,128,0.9)'; ctx.font='11px DM Sans,sans-serif'; ctx.textAlign='center';
+        ctx.fillText(`${i}m`, mx, my+cos*20+sin*4);
       }
-    } else {
-      // Equilibrio o sin datos: azul acero neutro
-      beamGrad.addColorStop(0,   '#2a4a5a');
-      beamGrad.addColorStop(0.5, '#4a7090');
-      beamGrad.addColorStop(1,   '#2a4a5a');
     }
 
-    ctx.strokeStyle = beamGrad;
-    ctx.lineWidth   = 14;
-    ctx.lineCap     = 'round';
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
+    // Flechas de fuerzas
+    forces.forEach((f,i)=>{
+      const t=Math.max(0,Math.min(1,f.position/beamLength));
+      const fx=x1+(x2-x1)*t, fy=y1+(y2-y1)*t;
+      const color = f.isResult ? '#52d68a' : COLORS[i%COLORS.length];
+      const arrowH = Math.min(80, Math.max(32, Math.abs((f.magnitude||100)/2.5)));
+      const aRad   = ((f.angle||90)*Math.PI)/180;
+      const adx    = -Math.sin(Math.PI/2-aRad+angle)*arrowH*0.2;
+      const ady    = -arrowH;
 
-    // Brillo superior de la viga (línea más delgada y clara encima)
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-    ctx.lineWidth   = 3;
-    ctx.beginPath();
-    ctx.moveTo(x1 + sin * 4, y1 - cos * 4);
-    ctx.lineTo(x2 + sin * 4, y2 - cos * 4);
-    ctx.stroke();
+      // línea
+      ctx.strokeStyle=color; ctx.lineWidth=2; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(fx,fy); ctx.lineTo(fx+adx,fy+ady); ctx.stroke();
 
-    // ── Flechas de fuerzas ───────────────────────────────────────────
-    const colors = ['#ff6b35','#ff4757','#ffd32a','#7fff6e','#a29bfe','#fd79a8'];
+      // punta
+      ctx.fillStyle=color;
+      ctx.beginPath(); ctx.moveTo(fx,fy); ctx.lineTo(fx-5,fy-12); ctx.lineTo(fx+5,fy-12); ctx.closePath(); ctx.fill();
 
-    forces.forEach((f, i) => {
-      // Posición de la fuerza a lo largo de la viga (en metros desde el inicio)
-      const t = f.position / beamLength; // 0..1 a lo largo de la viga
-      // Punto de aplicación en el canvas (interpolando entre x1,y1 y x2,y2)
-      const fx = x1 + (x2 - x1) * t;
-      const fy = y1 + (y2 - y1) * t;
+      // etiqueta nombre
+      ctx.fillStyle=color; ctx.font='500 11px DM Sans,sans-serif'; ctx.textAlign='center';
+      const label = f.isResult ? 'F?' : `F${i+1}`;
+      ctx.fillText(label, fx+adx, fy+ady-12);
 
-      const color    = colors[i % colors.length];
-      const arrowLen = Math.min(65, Math.max(28, Math.abs(f.magnitude) / 3.5));
+      // valor
+      ctx.font='10px DM Mono,monospace'; ctx.fillStyle='rgba(255,255,255,0.5)';
+      ctx.fillText(`${Math.round(f.magnitude)}N`, fx+adx, fy+ady-24);
 
-      // La flecha siempre apunta hacia arriba (perpendicular al suelo, no a la viga)
-      // para que sea visualmente claro que es una fuerza vertical
-      const forceAngleRad = (f.angle * Math.PI) / 180;
-      // Dirección de la flecha: siempre "hacia arriba" en el canvas
-      const arrowDx = -Math.sin(Math.PI / 2 - forceAngleRad + angle) * arrowLen * 0.25;
-      const arrowDy = -arrowLen;
-
-      // Cuerpo de la flecha
-      ctx.strokeStyle = color;
-      ctx.lineWidth   = 2.5;
-      ctx.shadowColor = color;
-      ctx.shadowBlur  = 8;
-      ctx.lineCap     = 'round';
-      ctx.beginPath();
-      ctx.moveTo(fx, fy);
-      ctx.lineTo(fx + arrowDx, fy + arrowDy);
-      ctx.stroke();
-
-      // Punta (triángulo en la base, donde la fuerza toca la viga)
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(fx, fy);
-      ctx.lineTo(fx - 5, fy - 13);
-      ctx.lineTo(fx + 5, fy - 13);
-      ctx.closePath();
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // Etiqueta del nombre
-      ctx.fillStyle  = color;
-      ctx.font       = 'bold 10px Orbitron, monospace';
-      ctx.textAlign  = 'center';
-      ctx.fillText(`F${i+1}`, fx + arrowDx, fy + arrowDy - 10);
-
-      // Magnitud en Newtons
-      ctx.font      = '9px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.fillText(`${f.magnitude}N`, fx + arrowDx, fy + arrowDy - 22);
-
-      // Torque individual (solo si hay resultado)
-      if (data && data.forces && data.forces[i]) {
-        const t_val = data.forces[i].torque;
-        ctx.fillStyle = Math.abs(t_val) > 0.001 ? color : '#4a5568';
-        ctx.font      = '8px Orbitron, monospace';
-        ctx.fillText(`τ=${t_val}N·m`, fx, fy + 28);
+      // torque individual si hay resultado
+      if(data && data.forces && data.forces[i] && !f.isResult){
+        const tv = data.forces[i].torque;
+        ctx.fillStyle = Math.abs(tv)>0.001 ? color+'cc' : 'rgba(107,114,128,0.6)';
+        ctx.font='9px DM Mono,monospace';
+        ctx.fillText(`τ=${tv}`, fx, fy+26);
       }
     });
 
-    // ── Marcas de escala en la viga ──────────────────────────────────
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-    ctx.lineWidth   = 1;
-    for (let i = 0; i <= beamLength; i++) {
-      const t   = i / beamLength;
-      const mx  = x1 + (x2 - x1) * t;
-      const my  = y1 + (y2 - y1) * t;
-      // Vector perpendicular a la viga para dibujar las marcas
-      const tickLen = i % 5 === 0 ? 7 : 4;
-      ctx.beginPath();
-      ctx.moveTo(mx - sin * tickLen, my + cos * tickLen);
-      ctx.lineTo(mx + sin * tickLen, my - cos * tickLen);
-      ctx.stroke();
+    // ángulo
+    if(Math.abs(angle)>0.005){
+      ctx.fillStyle='rgba(107,114,128,0.6)'; ctx.font='10px DM Mono,monospace'; ctx.textAlign='right';
+      ctx.fillText(`θ = ${(angle*180/Math.PI).toFixed(1)}°`, W-14, H-12);
+    }
+  }
 
-      // Etiquetas cada 2m cuando la viga está casi horizontal
-      if (i % 2 === 0 && Math.abs(angle) < 0.3) {
-        ctx.fillStyle  = 'rgba(100,120,140,0.8)';
-        ctx.font       = '9px Inter, sans-serif';
-        ctx.textAlign  = 'center';
-        ctx.fillText(`${i}m`, mx, my + cos * 18);
+  // ── Drag en canvas para mover fuerzas ────────────────────────────
+  let dragging = null;
+
+  document.getElementById('simCanvas').addEventListener('mousedown', e=>{
+    const canvas = document.getElementById('simCanvas');
+    const rect   = canvas.getBoundingClientRect();
+    const mx = (e.clientX-rect.left)*(canvas.width/rect.width);
+    const my = (e.clientY-rect.top)*(canvas.height/rect.height);
+
+    const beamLength = parseFloat(document.getElementById('beamLength').value)||10;
+    const pivot      = parseFloat(document.getElementById('pivot').value)||5;
+    const W=canvas.width, pivotX=W/2, pivotY=canvas.height*0.50;
+    const scale=(W*0.80)/beamLength;
+    const forces = mode==='torque' ? getForces() : getForcesEq();
+
+    forces.forEach((f,i)=>{
+      const t=Math.max(0,Math.min(1,f.position/beamLength));
+      const x1=pivotX-(pivot*scale)*Math.cos(beamAngle);
+      const y1=pivotY-(pivot*scale)*Math.sin(beamAngle);
+      const x2=pivotX+((beamLength-pivot)*scale)*Math.cos(beamAngle);
+      const y2=pivotY+((beamLength-pivot)*scale)*Math.sin(beamAngle);
+      const fx=x1+(x2-x1)*t, fy=y1+(y2-y1)*t;
+      if(Math.hypot(mx-fx,my-fy)<18) {
+        dragging={i,mode};
+        e.preventDefault();
       }
-    }
-
-    // ── Banner de estado (arriba del canvas) ─────────────────────────
-    if (data) {
-      const bc = data.isEquilibrium ? '#7fff6e' : '#ff6b35';
-      ctx.fillStyle   = bc + '18';
-      ctx.strokeStyle = bc + '60';
-      ctx.lineWidth   = 1;
-      ctx.beginPath();
-      ctx.roundRect(12, 10, W - 24, 26, 5);
-      ctx.fill(); ctx.stroke();
-
-      ctx.fillStyle  = bc;
-      ctx.font       = 'bold 10px Orbitron, monospace';
-      ctx.textAlign  = 'center';
-      const banner = data.isEquilibrium
-        ? `EQUILIBRIO  —  τ total = ${data.totalTorque} N·m`
-        : `ROTACIÓN ${data.rotationDirection.toUpperCase()}  —  τ neto = ${data.totalTorque} N·m`;
-      ctx.fillText(banner, W / 2, 27);
-    }
-
-    // ── Indicador de ángulo (esquina inferior derecha) ───────────────
-    if (Math.abs(angle) > 0.005) {
-      const deg = (angle * 180 / Math.PI).toFixed(1);
-      ctx.fillStyle  = 'rgba(100,116,139,0.8)';
-      ctx.font       = '9px Orbitron, monospace';
-      ctx.textAlign  = 'right';
-      ctx.fillText(`θ = ${deg}°`, W - 14, H - 12);
-    }
-  }
-
-  // ── Renderizado de resultados ───────────────────────────────────────
-  function renderResults(data) {
-    const panel = document.getElementById('resultsPanel');
-    const eq    = data.isEquilibrium;
-
-    const rotIcon = eq
-      ? '⚖️'
-      : data.rotationDirection === 'horario'
-        ? '<span class="rotation-indicator rotation-cw">↻</span>'
-        : '<span class="rotation-indicator rotation-ccw">↺</span>';
-
-    const rows = data.forces.map((f, i) => {
-      const tagClass = f.direction === 'horario' ? 'tag-cw' : f.direction === 'antihorario' ? 'tag-ccw' : 'tag-neutral';
-      return `<tr>
-        <td style="color:var(--accent2)">F${i+1}</td>
-        <td>${f.position} m</td>
-        <td>${f.magnitude} N</td>
-        <td>${f.angle}°</td>
-        <td>${f.leverArm} m</td>
-        <td style="font-weight:700">${f.torque} N·m</td>
-        <td><span class="tag ${tagClass}">${f.direction}</span></td>
-      </tr>`;
-    }).join('');
-
-    panel.innerHTML = `
-      <div class="panel-title">Resultados</div>
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap">
-        <span class="status-badge ${eq ? 'status-equilibrium' : 'status-dynamic'}">
-          ${rotIcon} &nbsp; ${data.status}
-        </span>
-        ${!eq ? `<span style="font-size:0.72rem;color:var(--muted)">Rotación: ${data.rotationDirection}</span>` : ''}
-      </div>
-      <div class="torque-total">
-        τ<sub>total</sub> = <span>${data.totalTorque}</span>
-        <span style="font-size:0.9rem;color:var(--muted)">N·m</span>
-      </div>
-      <div style="overflow-x:auto">
-        <table class="forces-table">
-          <thead><tr>
-            <th>Fuerza</th><th>Posición</th><th>Magnitud</th><th>Ángulo</th>
-            <th>Brazo</th><th>Torque</th><th>Dirección</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-      <div style="margin-top:14px;padding:10px 12px;background:rgba(0,0,0,0.3);border-radius:7px;font-size:0.72rem;color:var(--muted)">
-        <strong style="color:var(--text);font-family:'Orbitron',monospace;font-size:0.65rem">FÓRMULA:</strong>
-        &nbsp; τ = F × sen(θ) × d &nbsp;|&nbsp; Pivote: ${data.pivot} m &nbsp;|&nbsp; Viga: ${data.beamLength} m
-      </div>`;
-  }
-
-  // ── Init ─────────────────────────────────────────────────────────────
-  window.addEventListener('load', () => {
-    addForce();
-    addForce();
+    });
   });
 
-  window.addEventListener('resize', () => {
-    if (lastResult) drawDynamic(lastResult, beamAngle);
-    else drawDynamic(null, 0);
+  document.getElementById('simCanvas').addEventListener('mousemove', e=>{
+    const canvas = document.getElementById('simCanvas');
+    const rect   = canvas.getBoundingClientRect();
+    const mx = (e.clientX-rect.left)*(canvas.width/rect.width);
+
+    const beamLength = parseFloat(document.getElementById('beamLength').value)||10;
+    const pivot      = parseFloat(document.getElementById('pivot').value)||5;
+    const W=canvas.width, pivotX=W/2;
+    const scale=(W*0.80)/beamLength;
+    const leftEdge  = pivotX - pivot*scale*Math.cos(beamAngle);
+    const totalPx   = beamLength*scale;
+    const newPos    = Math.max(0,Math.min(beamLength, ((mx-leftEdge)/totalPx)*beamLength));
+
+    if(dragging!==null){
+      const idPrefix = dragging.mode==='torque' ? 'pos-' : 'eqpos-';
+      const rows = dragging.mode==='torque'
+        ? [...document.querySelectorAll('#forcesList .force-card')]
+        : [...document.querySelectorAll('#forcesListEq .force-card')];
+      if(rows[dragging.i]){
+        const id=rows[dragging.i].id.split('-')[1];
+        const inp=document.getElementById(idPrefix+id);
+        if(inp){ inp.value=parseFloat(newPos.toFixed(2)); }
+      }
+      lastResult=null; redraw();
+    }
+
+    // Tooltip hover
+    const tooltip = document.getElementById('canvasTooltip');
+    const forces = mode==='torque' ? getForces() : getForcesEq();
+    let found=false;
+    forces.forEach((f,i)=>{
+      const t=Math.max(0,Math.min(1,f.position/beamLength));
+      const x1c=pivotX-(pivot*scale)*Math.cos(beamAngle);
+      const y1c=(canvas.height*0.50)-(pivot*scale)*Math.sin(beamAngle);
+      const x2c=pivotX+((beamLength-pivot)*scale)*Math.cos(beamAngle);
+      const y2c=(canvas.height*0.50)+((beamLength-pivot)*scale)*Math.sin(beamAngle);
+      const fx=x1c+(x2c-x1c)*t, fy=y1c+(y2c-y1c)*t;
+      const cx=(e.clientX-rect.left)*(canvas.width/rect.width);
+      const cy=(e.clientY-rect.top)*(canvas.height/rect.height);
+      if(Math.hypot(cx-fx,cy-fy)<22){
+        document.getElementById('ttTitle').textContent=`F${i+1}`;
+        document.getElementById('ttBody').innerHTML=
+          `Pos: ${f.position} m<br>Mag: ${f.magnitude} N<br>Ángulo: ${f.angle}°`;
+        const tx=e.clientX-rect.left+12, ty=e.clientY-rect.top-10;
+        tooltip.style.left=tx+'px'; tooltip.style.top=ty+'px';
+        tooltip.classList.add('visible'); found=true;
+      }
+    });
+    if(!found) tooltip.classList.remove('visible');
   });
 
-  document.getElementById('beamLength').addEventListener('input', () => { lastResult = null; beamAngle = 0; drawStatic(); });
-  document.getElementById('pivot').addEventListener('input',      () => { lastResult = null; beamAngle = 0; drawStatic(); });
+  document.addEventListener('mouseup', ()=>{ dragging=null; });
+
+  // ── Listeners de inputs en tiempo real ──────────────────────────
+  document.getElementById('beamLength').addEventListener('input',()=>{ lastResult=null; redraw(); });
+  document.getElementById('pivot').addEventListener('input',()=>{ lastResult=null; redraw(); });
+
+  // ── Init ─────────────────────────────────────────────────────────
+  window.addEventListener('load',()=>{
+    addForce(); addForce();
+    addForceEq();
+  });
+  window.addEventListener('resize',()=>redraw());
 </script>
 </body>
 </html>
