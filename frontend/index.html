@@ -193,7 +193,6 @@
   <!-- ── Sidebar ─────────────────────────────────────────── -->
   <aside class="sidebar">
     <div class="logo">
-      <div class="logo-dot"></div>
       <div>
         <h1>ANALIZADOR DE TORQUE</h1>
         <span>Física mecánica</span>
@@ -243,7 +242,6 @@
         </div>
         <button class="btn-eq" onclick="calculateEquilibrium()">Calcular fuerza necesaria</button>
         <div class="eq-result" id="eqResult">
-          Ingresa las fuerzas conocidas y la posición donde quieres aplicar la fuerza de equilibrio.
         </div>
       </div>
       <div id="errorMsgEq"></div>
@@ -256,8 +254,8 @@
     <!-- Canvas -->
     <div class="canvas-panel">
       <div class="canvas-header">
-        <span id="canvasTitle">Simulación dinámica — agrega fuerzas y calcula</span>
-        <span class="status-pill pill-idle" id="statusPill">Sin calcular</span>
+        <span id="canvasTitle"></span>
+        <span class="status-pill pill-idle" id="statusPill"></span>
       </div>
       <div class="canvas-wrap">
         <canvas id="simCanvas" height="400"></canvas>
@@ -480,10 +478,6 @@
     document.getElementById('mTorque').style.color = data.isEquilibrium ? 'var(--green)' : 'var(--orange)';
     document.getElementById('mEstado').textContent = data.isEquilibrium ? 'Estático' : 'Dinámico';
     document.getElementById('mRot').textContent    = data.rotationDirection || '—';
-
-    const pill = document.getElementById('statusPill');
-    pill.textContent = data.isEquilibrium ? 'Equilibrio' : 'En rotación';
-    pill.className   = 'status-pill ' + (data.isEquilibrium ? 'pill-eq' : 'pill-dyn');
 
     document.getElementById('canvasTitle').textContent =
       data.isEquilibrium ? 'Sistema en equilibrio estático' : `Rotación ${data.rotationDirection} · τ = ${data.totalTorque} N·m`;
