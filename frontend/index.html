@@ -315,6 +315,21 @@
     mode = m;
     document.getElementById('panelTorque').style.display     = m === 'torque' ? '' : 'none';
     document.getElementById('panelEquilibrio').style.display = m === 'equilibrio' ? '' : 'none';
+    
+    // Ocultar resultados de torque al cambiar
+    document.getElementById('metricsRow').style.display = 'none';
+    document.getElementById('tablePanel').style.display = 'none';
+    document.getElementById('canvasTitle').textContent = '';
+    document.getElementById('statusPill').className = 'status-pill pill-idle';
+    document.getElementById('statusPill').textContent = '';
+    
+    // Limpiar resultado de equilibrio y errores
+    document.getElementById('eqResult').innerHTML = '';
+    document.getElementById('errorMsg').innerHTML = '';
+    document.getElementById('errorMsgEq').innerHTML = '';
+    
+    lastResult = null; // Resetear resultado previo para el canvas
+
     document.querySelectorAll('.tab').forEach((t,i) => {
       t.classList.toggle('active', (i===0 && m==='torque') || (i===1 && m==='equilibrio'));
     });
@@ -460,6 +475,12 @@
         <div class="eq-value" style="color:${col}">${Math.abs(data.requiredForce).toFixed(2)} N &nbsp;${dir}</div>
         <div style="margin-top:6px;font-size:0.7rem;color:var(--muted)">${data.message}</div>`;
 
+      // Actualizar pill de estado
+      const pill = document.getElementById('statusPill');
+      pill.textContent = 'EQUILIBRIO';
+      pill.className = 'status-pill pill-eq';
+      document.getElementById('canvasTitle').textContent = 'Equilibrio calculado';
+
       // Dibujar en canvas la fuerza resultante junto a las conocidas
       const allForces = [...forces, {position:unknownPosition, magnitude:Math.abs(data.requiredForce), angle:90, isResult:true, direction:data.requiredForce}];
       drawDynamic({forces:allForces.map(f=>({...f,torque:0,direction:'neutro'})), totalTorque:0, isEquilibrium:true, pivot, beamLength}, 0, allForces);
@@ -481,6 +502,10 @@
 
     document.getElementById('canvasTitle').textContent =
       data.isEquilibrium ? 'Sistema en equilibrio estático' : `Rotación ${data.rotationDirection} · τ = ${data.totalTorque} N·m`;
+
+    const pill = document.getElementById('statusPill');
+    pill.textContent = data.isEquilibrium ? 'EQUILIBRIO' : 'DINÁMICO';
+    pill.className = 'status-pill ' + (data.isEquilibrium ? 'pill-eq' : 'pill-dyn');
 
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = data.forces.map((f,i)=>{
