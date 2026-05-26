@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analizador de Torque</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:      #07090f;
+      --panel:   #0d1117;
+      --border:  #1a2332;
+      --accent:  #00d4ff;
+      --accent2: #ff6b35;
+      --accent3: #7fff6e;
+      --text:    #e2e8f0;
+      --muted:   #4a5568;
+      --red:     #ff4757;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none; z-index: 0;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; position: relative; z-index: 1; }
+
+    header {
+      display: flex; align-items: center; gap: 16px;
+      margin-bottom: 28px; padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.4rem; font-weight: 900;
+      letter-spacing: 0.04em;
+      background: 	#00BFFF;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    header p { color: var(--muted); font-size: 0.78rem; margin-top: 3px; font-weight: 300; }
+
+    .layout { display: grid; grid-template-columns: 320px 1fr; gap: 16px; }
+    @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+
+    .panel-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.6rem; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--accent);
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .field { margin-bottom: 12px; }
+    label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
+
+    input[type="number"] {
+      width: 100%;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 8px 11px;
+      color: var(--text);
+      font-family: 'Orbitron', monospace;
+      font-size: 0.82rem;
+      transition: border-color 0.2s; outline: none;
+    }
+    input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0,212,255,0.08);
+    }
+
+    .forces-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+
+    .force-row {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border);
+      border-radius: 9px; padding: 11px;
+      animation: slideIn 0.18s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .force-row-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+    .force-label { font-family: 'Orbitron', monospace; font-size: 0.65rem; color: var(--accent2); font-weight: 700; }
+    .btn-remove { background: none; border: none; color: var(--red); cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 4px; transition: background 0.15s; }
+    .btn-remove:hover { background: rgba(255,71,87,0.12); }
+
+    .force-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
+    .force-inputs label { font-size: 0.63rem; }
+
+    .btn { width: 100%; padding: 10px; border: none; border-radius: 9px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+    .btn-add { background: transparent; border: 1px dashed var(--border); color: var(--muted); margin-bottom: 8px; }
+    .btn-add:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-calc { background: linear-gradient(135deg, var(--accent), #0088bb); color: #000; font-weight: 700; box-shadow: 0 4px 18px rgba(0,212,255,0.2); }
+    .btn-calc:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(0,212,255,0.3); }
+    .btn-calc:active { transform: translateY(0); }
+
+    /* ── Canvas de simulación ── */
+    #simCanvas {
+      width: 100%; border-radius: 10px; display: block;
+      background: #07090f;
+      border: 1px solid var(--border);
+    }
+
+    .results-panel { margin-top: 14px; }
+
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 14px; border-radius: 999px;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.65rem; font-weight: 700;
+      letter-spacing: 0.06em;
+      margin-bottom: 14px;
+    }
+    .status-equilibrium { background: rgba(127,255,110,0.08); border: 1px solid var(--accent3); color: var(--accent3); }
+    .status-dynamic     { background: rgba(255,107,53,0.08);  border: 1px solid var(--accent2); color: var(--accent2); }
+
+    .torque-total {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.7rem; font-weight: 900; margin-bottom: 16px;
+    }
+    .torque-total span { color: var(--accent); }
+
+    .forces-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+    .forces-table th { text-align: left; color: var(--muted); padding: 5px 9px; border-bottom: 1px solid var(--border); font-size: 0.62rem; letter-spacing: 0.08em; font-weight: 500; }
+    .forces-table td { padding: 7px 9px; border-bottom: 1px solid rgba(26,35,50,0.6); font-family: 'Orbitron', monospace; font-size: 0.7rem; }
+    .forces-table tr:hover td { background: rgba(255,255,255,0.015); }
+
+    .tag { padding: 2px 7px; border-radius: 4px; font-size: 0.62rem; font-family: 'Orbitron', monospace; }
+    .tag-cw      { background: rgba(255,71,87,0.13);  color: var(--red); }
+    .tag-ccw     { background: rgba(0,212,255,0.1);   color: var(--accent); }
+    .tag-neutral { background: rgba(74,85,104,0.2);   color: var(--muted); }
+
+    .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 10px; opacity: 0.35; }
+    .empty-state p { font-size: 0.78rem; line-height: 1.6; }
+
+    .loading { opacity: 0.55; pointer-events: none; }
+    .error-msg { background: rgba(255,71,87,0.08); border: 1px solid var(--red); border-radius: 7px; padding: 9px 12px; font-size: 0.78rem; color: var(--red); margin-top: 8px; }
+
+    @keyframes rotate-cw  { from { transform: rotate(0deg); }   to { transform: rotate(360deg);  } }
+    @keyframes rotate-ccw { from { transform: rotate(0deg); }   to { transform: rotate(-360deg); } }
+    .rotation-indicator { display: inline-block; font-size: 1.2rem; }
+    .rotation-cw  { animation: rotate-cw  2s linear infinite; }
+    .rotation-ccw { animation: rotate-ccw 2s linear infinite; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>ANALIZADOR DE TORQUE</h1>
+      <p>Leyes de Newton · Estática / Dinámica · Momento de Fuerza</p>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="panel">
+        <div class="panel-title">Viga</div>
+        <div class="field">
+          <label>Longitud (m)</label>
+          <input type="number" id="beamLength" value="10" min="1" max="50" step="0.5" />
+        </div>
+        <div class="field">
+          <label>Posición del pivote (m)</label>
+          <input type="number" id="pivot" value="5" min="0" step="0.5" />
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="panel-title">Fuerzas</div>
+        <div class="forces-list" id="forcesList"></div>
+        <button class="btn btn-add"  onclick="addForce()">+ Agregar fuerza</button>
+        <button class="btn btn-calc" onclick="calculate()">Calcular →</button>
+        <div id="errorMsg"></div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="panel" style="padding:14px">
+        <div class="panel-title">Simulación Dinámica</div>
+        <canvas id="simCanvas" height="260"></canvas>
+      </div>
+
+      <div class="panel results-panel" id="resultsPanel">
+        <div class="empty-state">
+          <p>Agrega fuerzas y presiona<br/><strong>Calcular</strong> para ver la simulación</p>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  const API = '/api/physics/torque';
+  let forceCount = 0;
+  let lastResult = null;
+
+  // ── Estado de animación ─────────────────────────────────────────────
+  let beamAngle    = 0;       // Ángulo actual de inclinación de la viga (radianes)
+  let targetAngle  = 0;       // Ángulo destino según el torque neto
+  let animFrameId  = null;    // ID del requestAnimationFrame activo
+  let isAnimating  = false;
+
+  // ── Gestión de fuerzas ──────────────────────────────────────────────
+  function addForce() {
+    forceCount++;
+    const list = document.getElementById('forcesList');
+    const row  = document.createElement('div');
+    row.className = 'force-row';
+    row.id = `force-${forceCount}`;
+    row.innerHTML = `
+      <div class="force-row-header">
+        <span class="force-label">F${forceCount}</span>
+        <button class="btn-remove" onclick="removeForce(${forceCount})">✕</button>
+      </div>
+      <div class="force-inputs">
+        <div><label>Posición (m)</label><input type="number" id="pos-${forceCount}" value="${forceCount * 2}" step="0.5"/></div>
+        <div><label>Magnitud (N)</label><input type="number" id="mag-${forceCount}" value="100" step="1"/></div>
+        <div><label>Ángulo (°)</label><input type="number"   id="ang-${forceCount}" value="90"  min="1" max="179" step="5"/></div>
+      </div>`;
+    list.appendChild(row);
+    drawStatic();
+  }
+
+  function removeForce(id) {
+    const el = document.getElementById(`force-${id}`);
+    if (el) el.remove();
+    drawStatic();
+  }
+
+  function getForces() {
+    const forces = [];
+    document.querySelectorAll('.force-row').forEach(row => {
+      const id = row.id.split('-')[1];
+      forces.push({
+        position:  parseFloat(document.getElementById(`pos-${id}`).value) || 0,
+        magnitude: parseFloat(document.getElementById(`mag-${id}`).value) || 0,
+        angle:     parseFloat(document.getElementById(`ang-${id}`).value) || 90,
+      });
+    });
+    return forces;
+  }
+
+  // ── Llamada a la API ────────────────────────────────────────────────
+  async function calculate() {
+    const pivot      = parseFloat(document.getElementById('pivot').value);
+    const beamLength = parseFloat(document.getElementById('beamLength').value);
+    const forces     = getForces();
+    const errEl      = document.getElementById('errorMsg');
+    errEl.innerHTML  = '';
+
+    if (!forces.length) {
+      errEl.innerHTML = '<div class="error-msg">Agrega al menos una fuerza.</div>';
+      return;
+    }
+
+    const btn = document.querySelector('.btn-calc');
+    btn.textContent = 'Calculando…';
+    btn.classList.add('loading');
+
+    try {
+      const res  = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pivot, beamLength, forces }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      lastResult = data;
+      renderResults(data);
+      startAnimation(data); // ← arranca la animación de la viga
+
+    } catch (err) {
+      errEl.innerHTML = `<div class="error-msg">Error: ${err.message}</div>`;
+    } finally {
+      btn.textContent = 'Calcular →';
+      btn.classList.remove('loading');
+    }
+  }
+
+  // ── Animación de la viga ────────────────────────────────────────────
+  /**
+   * Calcula el ángulo destino a partir del torque neto.
+   * Un torque grande inclina más la viga; el equilibrio la deja horizontal.
+   * La viga se anima suavemente con interpolación lineal (lerp).
+   */
+  function startAnimation(data) {
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+
+    const MAX_ANGLE = Math.PI / 5; // Máximo 36° de inclinación
+
+    if (data.isEquilibrium) {
+      targetAngle = 0; // Viga horizontal = equilibrio
+    } else {
+      // Normalizar el torque para mapearlo a un ángulo visual
+      // Usamos arctan para que no crezca infinitamente
+      const torqueNorm = data.totalTorque / 500; // 500 N·m como referencia de escala
+      targetAngle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, Math.atan(torqueNorm) * 1.2));
+    }
+
+    isAnimating = true;
+    animate(data);
+  }
+
+  function animate(data) {
+    // Interpolación suave: beamAngle se acerca al targetAngle 6% por frame
+    beamAngle += (targetAngle - beamAngle) * 0.06;
+
+    drawDynamic(data, beamAngle);
+
+    // Seguimos animando hasta que la diferencia sea insignificante
+    if (Math.abs(targetAngle - beamAngle) > 0.001) {
+      animFrameId = requestAnimationFrame(() => animate(data));
+    } else {
+      beamAngle   = targetAngle;
+      isAnimating = false;
+      drawDynamic(data, beamAngle); // Frame final exacto
+    }
+  }
+
+  // ── Dibujo estático (sin resultado) ────────────────────────────────
+  function drawStatic() {
+    if (lastResult) return; // Si hay resultado activo, no sobreescribir
+    drawDynamic(null, 0);
+  }
+
+  // ── Motor de dibujo principal ───────────────────────────────────────
+  /**
+   * Dibuja la viga inclinada en `angle` radianes alrededor del pivote,
+   * con todas sus fuerzas y etiquetas.
+   *
+   * @param {Object|null} data  - Resultado del backend (o null si aún no se calculó)
+   * @param {number}      angle - Ángulo actual de la viga en radianes
+   */
+  function drawDynamic(data, angle) {
+    const canvas = document.getElementById('simCanvas');
+    const ctx    = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth || 800;
+    const W = canvas.width, H = 260;
+    canvas.height = H;
+
+    const beamLength = parseFloat(document.getElementById('beamLength').value) || 10;
+    const pivot      = parseFloat(document.getElementById('pivot').value) || 5;
+    const forces     = getForces();
+
+    // El pivote siempre está fijo en el centro visual del canvas
+    const pivotX = W / 2;
+    const pivotY = H * 0.52;
+    const scale  = (W * 0.78) / beamLength; // píxeles por metro
+
+    // Extremos de la viga rotada alrededor del pivote
+    const leftDist  = pivot * scale;          // distancia desde pivote al extremo izq
+    const rightDist = (beamLength - pivot) * scale; // distancia al extremo der
+
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+
+    // Coordenadas de los extremos de la viga en el canvas
+    const x1 = pivotX - leftDist  * cos,  y1 = pivotY - leftDist  * sin;
+    const x2 = pivotX + rightDist * cos,  y2 = pivotY + rightDist * sin;
+
+    // ── Fondo ────────────────────────────────────────────────────────
+    ctx.fillStyle = '#07090f';
+    ctx.fillRect(0, 0, W, H);
+
+    // Línea de horizonte de referencia (donde estaría la viga en equilibrio)
+    ctx.strokeStyle = 'rgba(26,35,50,0.8)';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(pivotX - leftDist, pivotY);
+    ctx.lineTo(pivotX + rightDist, pivotY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // ── Suelo / soporte del pivote ───────────────────────────────────
+    // Base del triángulo
+    ctx.strokeStyle = '#1a2332';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(pivotX - 20, pivotY + 28);
+    ctx.lineTo(pivotX + 20, pivotY + 28);
+    ctx.stroke();
+    // Líneas de suelo
+    for (let i = -3; i <= 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(pivotX + i * 7 - 4, pivotY + 28);
+      ctx.lineTo(pivotX + i * 7 - 10, pivotY + 36);
+      ctx.stroke();
+    }
+
+    // ── Pivote (triángulo fijo) ──────────────────────────────────────
+    ctx.fillStyle   = '#00d4ff';
+    ctx.shadowColor = '#00d4ff';
+    ctx.shadowBlur  = 12;
+    ctx.beginPath();
+    ctx.moveTo(pivotX,      pivotY);
+    ctx.lineTo(pivotX - 13, pivotY + 26);
+    ctx.lineTo(pivotX + 13, pivotY + 26);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // ── Sombra de la viga (efecto de profundidad) ────────────────────
+    ctx.shadowColor = 'rgba(0,212,255,0.15)';
+    ctx.shadowBlur  = 8;
+    ctx.strokeStyle = 'rgba(0,212,255,0.08)';
+    ctx.lineWidth   = 16;
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // ── Viga principal con degradado ─────────────────────────────────
+    // Para degradar a lo largo de la viga usamos un gradiente lineal entre sus extremos
+    const beamGrad = ctx.createLinearGradient(x1, y1, x2, y2);
+
+    if (data && !data.isEquilibrium) {
+      // Inclinada: el lado que "baja" se tiñe de naranja/rojo
+      if (angle > 0) {
+        // Gira antihorario: lado derecho baja
+        beamGrad.addColorStop(0,   '#3a5a6a');
+        beamGrad.addColorStop(1,   '#7a3020');
+      } else {
+        // Gira horario: lado izquierdo baja
+        beamGrad.addColorStop(0,   '#7a3020');
+        beamGrad.addColorStop(1,   '#3a5a6a');
+      }
+    } else {
+      // Equilibrio o sin datos: azul acero neutro
+      beamGrad.addColorStop(0,   '#2a4a5a');
+      beamGrad.addColorStop(0.5, '#4a7090');
+      beamGrad.addColorStop(1,   '#2a4a5a');
+    }
+
+    ctx.strokeStyle = beamGrad;
+    ctx.lineWidth   = 14;
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // Brillo superior de la viga (línea más delgada y clara encima)
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth   = 3;
+    ctx.beginPath();
+    ctx.moveTo(x1 + sin * 4, y1 - cos * 4);
+    ctx.lineTo(x2 + sin * 4, y2 - cos * 4);
+    ctx.stroke();
+
+    // ── Flechas de fuerzas ───────────────────────────────────────────
+    const colors = ['#ff6b35','#ff4757','#ffd32a','#7fff6e','#a29bfe','#fd79a8'];
+
+    forces.forEach((f, i) => {
+      // Posición de la fuerza a lo largo de la viga (en metros desde el inicio)
+      const t = f.position / beamLength; // 0..1 a lo largo de la viga
+      // Punto de aplicación en el canvas (interpolando entre x1,y1 y x2,y2)
+      const fx = x1 + (x2 - x1) * t;
+      const fy = y1 + (y2 - y1) * t;
+
+      const color    = colors[i % colors.length];
+      const arrowLen = Math.min(65, Math.max(28, Math.abs(f.magnitude) / 3.5));
+
+      // La flecha siempre apunta hacia arriba (perpendicular al suelo, no a la viga)
+      // para que sea visualmente claro que es una fuerza vertical
+      const forceAngleRad = (f.angle * Math.PI) / 180;
+      // Dirección de la flecha: siempre "hacia arriba" en el canvas
+      const arrowDx = -Math.sin(Math.PI / 2 - forceAngleRad + angle) * arrowLen * 0.25;
+      const arrowDy = -arrowLen;
+
+      // Cuerpo de la flecha
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 2.5;
+      ctx.shadowColor = color;
+      ctx.shadowBlur  = 8;
+      ctx.lineCap     = 'round';
+      ctx.beginPath();
+      ctx.moveTo(fx, fy);
+      ctx.lineTo(fx + arrowDx, fy + arrowDy);
+      ctx.stroke();
+
+      // Punta (triángulo en la base, donde la fuerza toca la viga)
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(fx, fy);
+      ctx.lineTo(fx - 5, fy - 13);
+      ctx.lineTo(fx + 5, fy - 13);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Etiqueta del nombre
+      ctx.fillStyle  = color;
+      ctx.font       = 'bold 10px Orbitron, monospace';
+      ctx.textAlign  = 'center';
+      ctx.fillText(`F${i+1}`, fx + arrowDx, fy + arrowDy - 10);
+
+      // Magnitud en Newtons
+      ctx.font      = '9px Inter, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillText(`${f.magnitude}N`, fx + arrowDx, fy + arrowDy - 22);
+
+      // Torque individual (solo si hay resultado)
+      if (data && data.forces && data.forces[i]) {
+        const t_val = data.forces[i].torque;
+        ctx.fillStyle = Math.abs(t_val) > 0.001 ? color : '#4a5568';
+        ctx.font      = '8px Orbitron, monospace';
+        ctx.fillText(`τ=${t_val}N·m`, fx, fy + 28);
+      }
+    });
+
+    // ── Marcas de escala en la viga ──────────────────────────────────
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth   = 1;
+    for (let i = 0; i <= beamLength; i++) {
+      const t   = i / beamLength;
+      const mx  = x1 + (x2 - x1) * t;
+      const my  = y1 + (y2 - y1) * t;
+      // Vector perpendicular a la viga para dibujar las marcas
+      const tickLen = i % 5 === 0 ? 7 : 4;
+      ctx.beginPath();
+      ctx.moveTo(mx - sin * tickLen, my + cos * tickLen);
+      ctx.lineTo(mx + sin * tickLen, my - cos * tickLen);
+      ctx.stroke();
+
+      // Etiquetas cada 2m cuando la viga está casi horizontal
+      if (i % 2 === 0 && Math.abs(angle) < 0.3) {
+        ctx.fillStyle  = 'rgba(100,120,140,0.8)';
+        ctx.font       = '9px Inter, sans-serif';
+        ctx.textAlign  = 'center';
+        ctx.fillText(`${i}m`, mx, my + cos * 18);
+      }
+    }
+
+    // ── Banner de estado (arriba del canvas) ─────────────────────────
+    if (data) {
+      const bc = data.isEquilibrium ? '#7fff6e' : '#ff6b35';
+      ctx.fillStyle   = bc + '18';
+      ctx.strokeStyle = bc + '60';
+      ctx.lineWidth   = 1;
+      ctx.beginPath();
+      ctx.roundRect(12, 10, W - 24, 26, 5);
+      ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle  = bc;
+      ctx.font       = 'bold 10px Orbitron, monospace';
+      ctx.textAlign  = 'center';
+      const banner = data.isEquilibrium
+        ? `EQUILIBRIO  —  τ total = ${data.totalTorque} N·m`
+        : `ROTACIÓN ${data.rotationDirection.toUpperCase()}  —  τ neto = ${data.totalTorque} N·m`;
+      ctx.fillText(banner, W / 2, 27);
+    }
+
+    // ── Indicador de ángulo (esquina inferior derecha) ───────────────
+    if (Math.abs(angle) > 0.005) {
+      const deg = (angle * 180 / Math.PI).toFixed(1);
+      ctx.fillStyle  = 'rgba(100,116,139,0.8)';
+      ctx.font       = '9px Orbitron, monospace';
+      ctx.textAlign  = 'right';
+      ctx.fillText(`θ = ${deg}°`, W - 14, H - 12);
+    }
+  }
+
+  // ── Renderizado de resultados ───────────────────────────────────────
+  function renderResults(data) {
+    const panel = document.getElementById('resultsPanel');
+    const eq    = data.isEquilibrium;
+
+    const rotIcon = eq
+      ? '⚖️'
+      : data.rotationDirection === 'horario'
+        ? '<span class="rotation-indicator rotation-cw">↻</span>'
+        : '<span class="rotation-indicator rotation-ccw">↺</span>';
+
+    const rows = data.forces.map((f, i) => {
+      const tagClass = f.direction === 'horario' ? 'tag-cw' : f.direction === 'antihorario' ? 'tag-ccw' : 'tag-neutral';
+      return `<tr>
+        <td style="color:var(--accent2)">F${i+1}</td>
+        <td>${f.position} m</td>
+        <td>${f.magnitude} N</td>
+        <td>${f.angle}°</td>
+        <td>${f.leverArm} m</td>
+        <td style="font-weight:700">${f.torque} N·m</td>
+        <td><span class="tag ${tagClass}">${f.direction}</span></td>
+      </tr>`;
+    }).join('');
+
+    panel.innerHTML = `
+      <div class="panel-title">Resultados</div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap">
+        <span class="status-badge ${eq ? 'status-equilibrium' : 'status-dynamic'}">
+          ${rotIcon} &nbsp; ${data.status}
+        </span>
+        ${!eq ? `<span style="font-size:0.72rem;color:var(--muted)">Rotación: ${data.rotationDirection}</span>` : ''}
+      </div>
+      <div class="torque-total">
+        τ<sub>total</sub> = <span>${data.totalTorque}</span>
+        <span style="font-size:0.9rem;color:var(--muted)">N·m</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="forces-table">
+          <thead><tr>
+            <th>Fuerza</th><th>Posición</th><th>Magnitud</th><th>Ángulo</th>
+            <th>Brazo</th><th>Torque</th><th>Dirección</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="margin-top:14px;padding:10px 12px;background:rgba(0,0,0,0.3);border-radius:7px;font-size:0.72rem;color:var(--muted)">
+        <strong style="color:var(--text);font-family:'Orbitron',monospace;font-size:0.65rem">FÓRMULA:</strong>
+        &nbsp; τ = F × sen(θ) × d &nbsp;|&nbsp; Pivote: ${data.pivot} m &nbsp;|&nbsp; Viga: ${data.beamLength} m
+      </div>`;
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────
+  window.addEventListener('load', () => {
+    addForce();
+    addForce();
+  });
+
+  window.addEventListener('resize', () => {
+    if (lastResult) drawDynamic(lastResult, beamAngle);
+    else drawDynamic(null, 0);
+  });
+
+  document.getElementById('beamLength').addEventListener('input', () => { lastResult = null; beamAngle = 0; drawStatic(); });
+  document.getElementById('pivot').addEventListener('input',      () => { lastResult = null; beamAngle = 0; drawStatic(); });
+</script>
+</body>
+</html>
