@@ -241,8 +241,6 @@
           <input type="number" id="unknownPos" value="8" step="0.5" />
         </div>
         <button class="btn-eq" onclick="calculateEquilibrium()">Calcular fuerza necesaria</button>
-        <div class="eq-result" id="eqResult">
-        </div>
       </div>
       <div id="errorMsgEq"></div>
     </div>
@@ -319,6 +317,12 @@
     // Ocultar resultados de torque al cambiar
     document.getElementById('metricsRow').style.display = 'none';
     document.getElementById('tablePanel').style.display = 'none';
+    
+    // Resetear etiquetas por defecto
+    document.querySelector('#metricsRow .metric:nth-child(1) .metric-label').textContent = 'τ total';
+    document.querySelector('#metricsRow .metric:nth-child(2) .metric-label').textContent = 'Estado';
+    document.querySelector('#metricsRow .metric:nth-child(3) .metric-label').textContent = 'Rotación';
+
     document.getElementById('canvasTitle').textContent = '';
     document.getElementById('statusPill').className = 'status-pill pill-idle';
     document.getElementById('statusPill').textContent = '';
@@ -465,15 +469,21 @@
       const data = await res.json();
       if(!res.ok) throw new Error(data.error);
 
-      const dir = data.requiredForce >= 0 ? '↑ hacia arriba' : '↓ hacia abajo';
-      const col = data.requiredForce >= 0 ? 'var(--green)' : 'var(--orange)';
-      resultEl.innerHTML = `
-        <div style="margin-bottom:6px;font-size:0.7rem;color:var(--muted)">
-          Σ τ conocidos = <strong>${data.knownTorque} N·m</strong> &nbsp;·&nbsp; brazo = <strong>${data.unknownLeverArm} m</strong>
-        </div>
-        <div style="margin-bottom:4px">Fuerza necesaria en <strong>${unknownPosition} m</strong>:</div>
-        <div class="eq-value" style="color:${col}">${Math.abs(data.requiredForce).toFixed(2)} N &nbsp;${dir}</div>
-        <div style="margin-top:6px;font-size:0.7rem;color:var(--muted)">${data.message}</div>`;
+      // Mostrar resultados en la sección principal
+      document.getElementById('metricsRow').style.display = '';
+      document.getElementById('tablePanel').style.display = '';
+
+      const dir = data.requiredForce >= 0 ? 'Arriba' : 'Abajo';
+      document.getElementById('mTorque').textContent = data.knownTorque + ' N·m';
+      document.getElementById('mTorque').style.color = 'var(--text)';
+      document.getElementById('mEstado').textContent = Math.abs(data.requiredForce).toFixed(2) + ' N';
+      document.getElementById('mEstado').style.color = 'var(--green)';
+      document.getElementById('mRot').textContent    = dir;
+
+      // Actualizar etiquetas de las métricas para que tengan sentido en equilibrio
+      document.querySelector('#metricsRow .metric:nth-child(1) .metric-label').textContent = 'Σ τ conocidos';
+      document.querySelector('#metricsRow .metric:nth-child(2) .metric-label').textContent = 'F necesaria';
+      document.querySelector('#metricsRow .metric:nth-child(3) .metric-label').textContent = 'Dirección F';
 
       // Actualizar pill de estado
       const pill = document.getElementById('statusPill');
@@ -482,7 +492,33 @@
       document.getElementById('canvasTitle').textContent = 'Equilibrio calculado';
 
       // Dibujar en canvas la fuerza resultante junto a las conocidas
-      const allForces = [...forces, {position:unknownPosition, magnitude:Math.abs(data.requiredForce), angle:90, isResult:true, direction:data.requiredForce}];
+      const allForces = [...forces, {
+        position: unknownPosition, 
+        magnitude: Math.abs(data.requiredForce), 
+        angle: 90, 
+        isResult: true, 
+        direction: data.requiredForce >= 0 ? 'antihorario' : 'horario', // Simplificado para la tabla
+        leverArm: data.unknownLeverArm,
+        torque: (data.requiredForce * data.unknownLeverArm).toFixed(2)
+      }];
+
+      // Actualizar tabla
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = allForces.map((f, i) => {
+        const isUnknown = f.isResult;
+        const color = isUnknown ? 'var(--green)' : COLORS[i % COLORS.length];
+        const name = isUnknown ? 'F?' : `F${i+1}`;
+        const dc = f.direction === 'horario' ? 'dir-cw' : f.direction === 'antihorario' ? 'dir-ccw' : 'dir-n';
+        
+        return `<tr>
+          <td style="color:${color}">${name}</td>
+          <td>${f.position} m</td><td>${f.magnitude.toFixed(2)} N</td><td>${f.angle}°</td>
+          <td>${f.leverArm ? f.leverArm.toFixed(2) : Math.abs(f.position - pivot).toFixed(2)} m</td>
+          <td style="font-weight:500">${f.torque || (f.magnitude * Math.sin(f.angle * Math.PI / 180) * (f.position - pivot)).toFixed(2)} N·m</td>
+          <td><span class="dir-badge ${dc}">${f.direction || '—'}</span></td>
+        </tr>`;
+      }).join('');
+
       drawDynamic({forces:allForces.map(f=>({...f,torque:0,direction:'neutro'})), totalTorque:0, isEquilibrium:true, pivot, beamLength}, 0, allForces);
 
     } catch(err) {
@@ -497,15 +533,19 @@
 
     document.getElementById('mTorque').textContent = data.totalTorque + ' N·m';
     document.getElementById('mTorque').style.color = data.isEquilibrium ? 'var(--green)' : 'var(--orange)';
+    document.getElementById('mEstado').style.color = 'var(--text)';
     document.getElementById('mEstado').textContent = data.isEquilibrium ? 'Estático' : 'Dinámico';
     document.getElementById('mRot').textContent    = data.rotationDirection || '—';
+
+    // Resetear etiquetas de métricas por si venían de equilibrio
+    document.querySelector('#metricsRow .metric:nth-child(1) .metric-label').textContent = 'τ total';
+    document.querySelector('#metricsRow .metric:nth-child(2) .metric-label').textContent = 'Estado';
+    document.querySelector('#metricsRow .metric:nth-child(3) .metric-label').textContent = 'Rotación';
 
     document.getElementById('canvasTitle').textContent =
       data.isEquilibrium ? 'Sistema en equilibrio estático' : `Rotación ${data.rotationDirection} · τ = ${data.totalTorque} N·m`;
 
-    const pill = document.getElementById('statusPill');
-    pill.textContent = data.isEquilibrium ? 'EQUILIBRIO' : 'DINÁMICO';
-    pill.className = 'status-pill ' + (data.isEquilibrium ? 'pill-eq' : 'pill-dyn');
+
 
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = data.forces.map((f,i)=>{
